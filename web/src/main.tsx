@@ -2,6 +2,7 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import { RouterProvider } from "react-router-dom";
 
+import "leaflet/dist/leaflet.css";
 import "./index.css";
 import { router } from "./routes";
 

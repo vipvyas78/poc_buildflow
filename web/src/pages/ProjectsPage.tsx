@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import {
   Filter,
@@ -8,10 +8,19 @@ import {
   RotateCcw,
   Search,
 } from "lucide-react";
+import {
+  CircleMarker,
+  MapContainer,
+  Popup,
+  TileLayer,
+  Tooltip,
+  useMap,
+} from "react-leaflet";
 
 import { projects } from "../features/projects/data/projects";
 
 const allOption = "All";
+const defaultMapCenter: [number, number] = [52.05, -0.85];
 
 const progressRanges = [
   allOption,
@@ -66,6 +75,45 @@ function statusClasses(status: string) {
   }
 
   return "bg-amber-100 text-amber-700";
+}
+
+function markerColor(status: string) {
+  if (status === "On Track") {
+    return "#15803d";
+  }
+
+  if (status === "Delayed") {
+    return "#dc2626";
+  }
+
+  return "#d97706";
+}
+
+function ProjectMapBounds({
+  positions,
+}: {
+  positions: Array<[number, number]>;
+}) {
+  const map = useMap();
+
+  useEffect(() => {
+    if (positions.length === 0) {
+      map.setView(defaultMapCenter, 6);
+      return;
+    }
+
+    if (positions.length === 1) {
+      map.setView(positions[0], 12);
+      return;
+    }
+
+    map.fitBounds(positions, {
+      maxZoom: 13,
+      padding: [48, 48],
+    });
+  }, [map, positions]);
+
+  return null;
 }
 
 export default function ProjectsPage() {
@@ -185,6 +233,9 @@ export default function ProjectsPage() {
   const delayedCount = filteredProjects.filter(
     (project) => project.status === "Delayed"
   ).length;
+  const mapPositions = filteredProjects.map(
+    (project) => project.coordinates
+  );
 
   function clearFilters() {
     setSearch("");
@@ -609,24 +660,112 @@ export default function ProjectsPage() {
       {/* MAP VIEW */}
 
       {view === "map" && (
-        <div className="rounded-3xl bg-white p-8 shadow-sm">
-
-          <div className="flex h-[500px] items-center justify-center rounded-3xl border border-dashed border-slate-300 bg-slate-50">
-
-            <div className="text-center">
-              <Map
-                className="mx-auto mb-4 text-slate-400"
-                size={48}
-              />
-
-              <h2 className="text-2xl font-semibold text-slate-700">
-                Interactive Project Map
+        <div className="overflow-hidden rounded-3xl bg-white shadow-sm">
+          <div className="flex flex-col gap-4 border-b border-slate-100 p-6 text-left md:flex-row md:items-center md:justify-between">
+            <div>
+              <h2 className="text-2xl font-semibold text-slate-800">
+                Project Map
               </h2>
 
-              <p className="mt-2 text-slate-500">
-                {filteredProjects.length} filtered projects ready to plot
+              <p className="mt-1 text-slate-500">
+                {filteredProjects.length} filtered projects plotted by site location
               </p>
             </div>
+
+            <div className="flex flex-wrap gap-2 text-sm">
+              {["On Track", "At Risk", "Delayed"].map((status) => (
+                <span
+                  key={status}
+                  className="flex items-center gap-2 rounded-full border border-slate-200 px-3 py-2 text-slate-600"
+                >
+                  <span
+                    className="h-2.5 w-2.5 rounded-full"
+                    style={{ backgroundColor: markerColor(status) }}
+                  />
+                  {status}
+                </span>
+              ))}
+            </div>
+          </div>
+
+          <div className="h-[560px] min-h-[420px]">
+            <MapContainer
+              center={defaultMapCenter}
+              zoom={6}
+              scrollWheelZoom
+              className="h-full w-full"
+            >
+              <ProjectMapBounds positions={mapPositions} />
+
+              <TileLayer
+                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+              />
+
+              {filteredProjects.map((project) => {
+                const color = markerColor(project.status);
+
+                return (
+                  <CircleMarker
+                    key={project.id}
+                    center={project.coordinates}
+                    radius={10}
+                    pathOptions={{
+                      color,
+                      fillColor: color,
+                      fillOpacity: 0.85,
+                      weight: 3,
+                    }}
+                  >
+                    <Tooltip direction="top" offset={[0, -8]}>
+                      {project.name}
+                    </Tooltip>
+
+                    <Popup>
+                      <div className="min-w-52 text-left">
+                        <p className="font-semibold text-slate-900">
+                          {project.name}
+                        </p>
+
+                        <p className="mt-1 text-sm text-slate-500">
+                          {project.code} · {project.location}
+                        </p>
+
+                        <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
+                          <div>
+                            <p className="text-slate-400">Status</p>
+                            <p className="font-medium text-slate-800">
+                              {project.status}
+                            </p>
+                          </div>
+
+                          <div>
+                            <p className="text-slate-400">Progress</p>
+                            <p className="font-medium text-slate-800">
+                              {project.progress}%
+                            </p>
+                          </div>
+
+                          <div>
+                            <p className="text-slate-400">Value</p>
+                            <p className="font-medium text-slate-800">
+                              {project.value}
+                            </p>
+                          </div>
+
+                          <div>
+                            <p className="text-slate-400">Deadline</p>
+                            <p className="font-medium text-slate-800">
+                              {project.deadline}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </Popup>
+                  </CircleMarker>
+                );
+              })}
+            </MapContainer>
           </div>
         </div>
       )}

@@ -1,4 +1,21 @@
-export const projects = [
+export type Project = {
+  id: number;
+  name: string;
+  code: string;
+  type: string;
+  status: string;
+  progress: number;
+  value: string;
+  budgetVariance: string;
+  budgetStatus: string;
+  deadline: string;
+  location: string;
+  coordinates: [number, number];
+  phase: string;
+  team: string[];
+};
+
+export const projects: Project[] = [
   {
     id: 1,
     name: "Canary Wharf Fit-Out",
@@ -11,6 +28,7 @@ export const projects = [
     budgetStatus: "On budget",
     deadline: "Oct 2025",
     location: "Canary Wharf, London",
+    coordinates: [51.5054, -0.0235],
     phase: "Phase 3 of 5",
     team: ["GA", "PR", "LT"],
   },
@@ -27,6 +45,7 @@ export const projects = [
     budgetStatus: "On budget",
     deadline: "Dec 2025",
     location: "Birmingham",
+    coordinates: [52.4862, -1.8904],
     phase: "Phase 2 of 5",
     team: ["TH", "SW", "NP"],
   },
@@ -43,6 +62,7 @@ export const projects = [
     budgetStatus: "Over budget",
     deadline: "Mar 2026",
     location: "Highbury",
+    coordinates: [51.5465, -0.1026],
     phase: "Phase 1 of 4",
     team: ["AB", "KS"],
   },
