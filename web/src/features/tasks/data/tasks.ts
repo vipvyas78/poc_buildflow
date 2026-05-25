@@ -1,0 +1,61 @@
+export const tasks = [
+  {
+    id: 1,
+    title: "Install HVAC ducting",
+    project: "Canary Wharf Fit-Out",
+    contractor: "Elite Mechanical Ltd",
+    assignee: "James Walker",
+    status: "In Progress",
+    priority: "High",
+    dueDate: "2025-10-14",
+    completed: false,
+  },
+
+  {
+    id: 2,
+    title: "Fire safety inspection",
+    project: "Central Station Refurb",
+    contractor: "SafeBuild Compliance",
+    assignee: "Sarah Mitchell",
+    status: "Pending",
+    priority: "Medium",
+    dueDate: "2025-09-30",
+    completed: false,
+  },
+
+  {
+    id: 3,
+    title: "Concrete foundation pour",
+    project: "Highbury Estate Phase 2",
+    contractor: "UrbanCore Construction",
+    assignee: "Michael Brown",
+    status: "Delayed",
+    priority: "High",
+    dueDate: "2025-09-22",
+    completed: false,
+  },
+
+  {
+    id: 4,
+    title: "Electrical first fix",
+    project: "Canary Wharf Fit-Out",
+    contractor: "VoltEdge Services",
+    assignee: "Emma Collins",
+    status: "Completed",
+    priority: "Medium",
+    dueDate: "2025-08-18",
+    completed: true,
+  },
+
+  {
+    id: 5,
+    title: "Roof waterproofing",
+    project: "Riverside Tower",
+    contractor: "Skyline Roofing",
+    assignee: "Daniel Harris",
+    status: "Completed",
+    priority: "Low",
+    dueDate: "2025-07-30",
+    completed: true,
+  },
+];
