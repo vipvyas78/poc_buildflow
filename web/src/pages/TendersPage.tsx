@@ -11,6 +11,7 @@ import {
   FileUp,
   FolderOpen,
   Gauge,
+  Layers3,
   ListChecks,
   MessageSquareText,
   PoundSterling,
@@ -21,200 +22,31 @@ import {
   TrendingUp,
 } from "lucide-react";
 
+import {
+  generateBoqFromDrawings,
+  type BoqGenerationProgress,
+  type GenerateBoqResponse,
+} from "../features/tenders/api/generateBoq";
+import {
+  aiSignals,
+  awardTasks,
+  drawingUploads,
+  estimateRows,
+  generatedBoqItems,
+  negotiationLog,
+  nrmModes,
+  preTenderCriteria,
+  stages,
+  submissionFiles,
+  tenderOptions,
+  tenderSummary,
+  type DrawingUpload,
+  type GeneratedBoqItem,
+  type NrmMode,
+  type SemanticTone,
+  type StageId,
+} from "../features/tenders/data/tenders";
 import { cn } from "../lib/utils";
-
-type StageId =
-  | "pre-tender"
-  | "estimating"
-  | "submission"
-  | "negotiation"
-  | "award";
-
-type SemanticTone = "blue" | "green" | "amber" | "red" | "slate";
-
-const stages: Array<{
-  id: StageId;
-  label: string;
-  shortLabel: string;
-  status: "complete" | "active" | "locked";
-}> = [
-  {
-    id: "pre-tender",
-    label: "Pre-Tender",
-    shortLabel: "Pre",
-    status: "complete",
-  },
-  {
-    id: "estimating",
-    label: "Estimating",
-    shortLabel: "Estimate",
-    status: "active",
-  },
-  {
-    id: "submission",
-    label: "Submission",
-    shortLabel: "Submit",
-    status: "locked",
-  },
-  {
-    id: "negotiation",
-    label: "Negotiation",
-    shortLabel: "Negotiate",
-    status: "locked",
-  },
-  {
-    id: "award",
-    label: "Award",
-    shortLabel: "Award",
-    status: "locked",
-  },
-];
-
-const tenderOptions = [
-  "Cambridge Civic Quarter",
-  "Bristol Hospital Retrofit",
-  "Leeds Student Living",
-];
-
-const tenderSummary = {
-  client: "Cambridge City Council",
-  value: "£8.6M",
-  bidDue: "12 Jun 2026",
-  countdown: "18d 04h",
-  confidence: 78,
-  margin: "11.8%",
-  risk: "Medium",
-};
-
-const estimateRows = [
-  {
-    code: "1.0",
-    item: "Site preliminaries",
-    supplier: "BuildFlow internal",
-    quantity: "16 wks",
-    cost: "£428K",
-    delta: "+2.1%",
-    tone: "amber" as SemanticTone,
-  },
-  {
-    code: "2.0",
-    item: "Substructure package",
-    supplier: "East Anglia Groundworks",
-    quantity: "1 lot",
-    cost: "£1.42M",
-    delta: "-1.8%",
-    tone: "green" as SemanticTone,
-  },
-  {
-    code: "2.1",
-    item: "Piling attendance",
-    supplier: "Fen Piling Ltd",
-    quantity: "112 piles",
-    cost: "£386K",
-    delta: "+4.6%",
-    tone: "red" as SemanticTone,
-  },
-  {
-    code: "3.0",
-    item: "Frame and envelope",
-    supplier: "Northern Steelworks",
-    quantity: "1 lot",
-    cost: "£2.31M",
-    delta: "+0.4%",
-    tone: "blue" as SemanticTone,
-  },
-];
-
-const submissionFiles = [
-  {
-    name: "Form of tender",
-    owner: "Commercial",
-    status: "Verified",
-    tone: "green" as SemanticTone,
-  },
-  {
-    name: "Programme narrative",
-    owner: "Planning",
-    status: "Draft review",
-    tone: "amber" as SemanticTone,
-  },
-  {
-    name: "Health and safety method",
-    owner: "HSEQ",
-    status: "Missing",
-    tone: "red" as SemanticTone,
-  },
-  {
-    name: "Social value response",
-    owner: "Bid team",
-    status: "Ready",
-    tone: "green" as SemanticTone,
-  },
-];
-
-const preTenderCriteria = [
-  {
-    label: "Client fit",
-    score: 82,
-    tone: "green" as SemanticTone,
-  },
-  {
-    label: "Resource capacity",
-    score: 64,
-    tone: "amber" as SemanticTone,
-  },
-  {
-    label: "Contract exposure",
-    score: 41,
-    tone: "red" as SemanticTone,
-  },
-];
-
-const negotiationLog = [
-  {
-    time: "09:20",
-    title: "Client requested VE option for facade finish",
-    impact: "-£186K",
-    tone: "blue" as SemanticTone,
-  },
-  {
-    time: "11:45",
-    title: "Legal flagged liquidated damages clause",
-    impact: "Blocker",
-    tone: "red" as SemanticTone,
-  },
-  {
-    time: "14:10",
-    title: "MEP subcontractor held price for 21 days",
-    impact: "Clear",
-    tone: "green" as SemanticTone,
-  },
-];
-
-const awardTasks = [
-  "Initialize project instance",
-  "Map tender BoQ to project cost plan",
-  "Create handover pack",
-  "Log post-bid criteria",
-];
-
-const aiSignals = [
-  {
-    label: "Clause risk",
-    value: "2 critical",
-    tone: "red" as SemanticTone,
-  },
-  {
-    label: "Supplier coverage",
-    value: "84%",
-    tone: "green" as SemanticTone,
-  },
-  {
-    label: "Pricing drift",
-    value: "+1.6%",
-    tone: "amber" as SemanticTone,
-  },
-];
 
 function toneClasses(tone: SemanticTone) {
   const classes = {
@@ -238,6 +70,358 @@ function progressColor(tone: SemanticTone) {
   };
 
   return classes[tone];
+}
+
+function BoqBuilderModule() {
+  const [nrmMode, setNrmMode] = useState<NrmMode>("NRM1 + NRM2");
+  const [uploadedDrawings, setUploadedDrawings] =
+    useState<DrawingUpload[]>(drawingUploads);
+  const [generatedItems, setGeneratedItems] =
+    useState<GeneratedBoqItem[]>(generatedBoqItems);
+  const [isDraftCurrent, setIsDraftCurrent] = useState(true);
+  const [measurementOpen, setMeasurementOpen] = useState(false);
+  const [generationProgress, setGenerationProgress] =
+    useState<BoqGenerationProgress>({
+      status: "complete",
+      progress: 100,
+      message: "BOQ draft ready for estimator review",
+    });
+  const [generationSummary, setGenerationSummary] =
+    useState<GenerateBoqResponse["summary"] | null>({
+      drawingCount: drawingUploads.length,
+      generatedItemCount: generatedBoqItems.length,
+      averageConfidence: 76,
+      reviewRequiredCount: 3,
+    });
+  const [generationJobId, setGenerationJobId] = useState("boq-demo");
+  const [generationError, setGenerationError] = useState("");
+
+  const isGenerating =
+    generationProgress.status !== "complete" &&
+    generationProgress.progress < 100;
+
+  function addDrawings(files: FileList | null) {
+    if (!files) {
+      return;
+    }
+
+    const nextDrawings = Array.from(files).map((file) => ({
+      name: file.name,
+      discipline: "Unclassified",
+      status: "Queued",
+      tone: "blue" as SemanticTone,
+    }));
+
+    setUploadedDrawings((currentDrawings) => [
+      ...nextDrawings,
+      ...currentDrawings,
+    ]);
+    setIsDraftCurrent(false);
+    setGenerationSummary(null);
+  }
+
+  async function generateBoq() {
+    setGenerationError("");
+    setIsDraftCurrent(false);
+
+    try {
+      const response = await generateBoqFromDrawings(
+        {
+          tenderId: "cambridge-civic-quarter",
+          nrmMode,
+          drawings: uploadedDrawings,
+        },
+        setGenerationProgress
+      );
+
+      setGeneratedItems(response.items);
+      setGenerationSummary(response.summary);
+      setGenerationJobId(response.jobId);
+      setIsDraftCurrent(true);
+    } catch {
+      setGenerationError("BOQ generation failed. Try again or review uploads.");
+    }
+  }
+
+  return (
+    <div className="min-w-0 rounded-lg border border-slate-200 bg-white">
+      <div className="flex flex-col gap-4 border-b border-slate-100 p-5 lg:flex-row lg:items-center lg:justify-between">
+        <div>
+          <p className="text-sm font-semibold uppercase tracking-wide text-blue-700">
+            NRM BOQ Builder
+          </p>
+          <h2 className="m-0 mt-1 text-lg font-semibold text-slate-900">
+            Drawings to AI-generated bill items
+          </h2>
+        </div>
+
+        <button
+          onClick={generateBoq}
+          disabled={isGenerating || uploadedDrawings.length === 0}
+          className="flex w-fit items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          <Sparkles
+            size={16}
+            className={cn(isGenerating && "animate-pulse")}
+          />
+          {isGenerating ? "Generating..." : "Generate BOQ"}
+        </button>
+      </div>
+
+      <div className="grid min-w-0 gap-5 p-5 xl:grid-cols-[260px_minmax(0,1fr)]">
+        <div className="min-w-0 space-y-4">
+          <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+            <button
+              onClick={() => setMeasurementOpen((isOpen) => !isOpen)}
+              className="flex w-full items-center justify-between gap-3 text-left"
+            >
+              <span>
+                <span className="block font-semibold text-slate-800">
+                  Measurement basis
+                </span>
+                <span className="mt-1 block text-xs font-medium text-blue-700">
+                  {nrmMode}
+                </span>
+              </span>
+              {measurementOpen ? (
+                <ChevronDown size={17} className="text-slate-500" />
+              ) : (
+                <ChevronRight size={17} className="text-slate-500" />
+              )}
+            </button>
+
+            {measurementOpen && (
+              <div className="mt-3 grid gap-2">
+                {nrmModes.map((mode) => (
+                  <button
+                    key={mode.id}
+                    onClick={() => {
+                      setNrmMode(mode.id);
+                      setIsDraftCurrent(false);
+                      setGenerationSummary(null);
+                    }}
+                    className={cn(
+                      "rounded-lg border px-3 py-3 text-left transition",
+                      nrmMode === mode.id
+                        ? "border-blue-300 bg-blue-50 text-blue-800"
+                        : "border-slate-200 bg-white text-slate-600 hover:border-blue-200"
+                    )}
+                  >
+                    <span className="block font-semibold">{mode.label}</span>
+                    <span className="mt-1 block text-xs">
+                      {mode.description}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <label className="flex cursor-pointer flex-col items-center justify-center rounded-lg border border-dashed border-blue-300 bg-blue-50 p-5 text-center text-blue-800 transition hover:bg-blue-100">
+            <FileUp size={22} />
+            <span className="mt-2 font-semibold">Upload drawings</span>
+            <span className="mt-1 text-xs">
+              PDF, DWG, IFC or image sheets for AI take-off
+            </span>
+            <input
+              type="file"
+              multiple
+              className="sr-only"
+              onChange={(event) => addDrawings(event.target.files)}
+            />
+          </label>
+
+          <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-amber-800">
+            <p className="font-semibold">AI review rule</p>
+            <p className="mt-1 text-xs">
+              Low-confidence quantities stay marked for estimator validation
+              before they can move into the priced BoQ.
+            </p>
+          </div>
+        </div>
+
+        <div className="min-w-0 space-y-4">
+          <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+              <div>
+                <p className="font-semibold text-slate-800">
+                  AI generation status
+                </p>
+                <p className="mt-1 text-xs text-slate-500">
+                  {generationProgress.message}
+                </p>
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-600">
+                  Job {generationJobId}
+                </span>
+                <span
+                  className={cn(
+                    "rounded-full border px-3 py-1 text-xs font-semibold",
+                    isDraftCurrent ? toneClasses("green") : toneClasses("amber")
+                  )}
+                >
+                  {isDraftCurrent ? "Current draft" : "Regeneration needed"}
+                </span>
+              </div>
+            </div>
+
+            <div className="mt-3 h-2 rounded-full bg-white">
+              <div
+                className={cn(
+                  "h-2 rounded-full transition-all",
+                  isDraftCurrent ? "bg-emerald-500" : "bg-blue-600"
+                )}
+                style={{ width: `${generationProgress.progress}%` }}
+              />
+            </div>
+
+            {generationSummary && (
+              <div className="mt-3 grid gap-2 md:grid-cols-4">
+                {[
+                  {
+                    label: "Drawings",
+                    value: generationSummary.drawingCount,
+                  },
+                  {
+                    label: "BOQ items",
+                    value: generationSummary.generatedItemCount,
+                  },
+                  {
+                    label: "Avg AI",
+                    value: `${generationSummary.averageConfidence}%`,
+                  },
+                  {
+                    label: "Review flags",
+                    value: generationSummary.reviewRequiredCount,
+                  },
+                ].map((metric) => (
+                  <div
+                    key={metric.label}
+                    className="rounded-lg border border-slate-200 bg-white px-3 py-2"
+                  >
+                    <p className="text-xs font-semibold text-slate-500">
+                      {metric.label}
+                    </p>
+                    <p className="mt-1 text-lg font-bold text-slate-900">
+                      {metric.value}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {generationError && (
+              <p className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700">
+                {generationError}
+              </p>
+            )}
+          </div>
+
+          <div className="grid min-w-0 gap-3 md:grid-cols-3">
+            {uploadedDrawings.map((drawing) => (
+              <div
+                key={`${drawing.name}-${drawing.status}`}
+                className="rounded-lg border border-slate-200 bg-slate-50 p-4"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <FolderOpen className="mt-0.5 text-slate-400" size={17} />
+                  <span
+                    className={cn(
+                      "rounded-full border px-2 py-0.5 text-xs font-semibold",
+                      toneClasses(drawing.tone)
+                    )}
+                  >
+                    {drawing.status}
+                  </span>
+                </div>
+                <p className="mt-3 font-semibold text-slate-800">
+                  {drawing.name}
+                </p>
+                <p className="mt-1 text-xs text-slate-500">
+                  {drawing.discipline}
+                </p>
+              </div>
+            ))}
+          </div>
+
+          <div className="min-w-0 overflow-hidden rounded-lg border border-slate-200">
+            <div className="flex items-center justify-between gap-3 border-b border-slate-100 bg-slate-50 px-4 py-3">
+              <span className="flex items-center gap-2 font-semibold text-slate-800">
+                <Layers3 size={17} className="text-blue-600" />
+                AI BOQ draft
+              </span>
+              <span
+                className={cn(
+                  "rounded-full border px-3 py-1 text-xs font-semibold",
+                  isDraftCurrent
+                    ? toneClasses("green")
+                    : toneClasses("amber")
+                )}
+              >
+                {isDraftCurrent ? "Generated from " : "Stale draft for "}
+                {nrmMode}
+              </span>
+            </div>
+
+            <div className="max-w-full overflow-x-auto">
+              <table className="w-full min-w-[820px] text-left">
+                <thead className="border-b border-slate-100 text-xs uppercase text-slate-500">
+                  <tr>
+                    <th className="px-4 py-3">NRM1</th>
+                    <th className="px-4 py-3">NRM2</th>
+                    <th className="px-4 py-3">Generated BOQ item</th>
+                    <th className="px-4 py-3">Source</th>
+                    <th className="px-4 py-3">Qty</th>
+                    <th className="px-4 py-3">AI</th>
+                    <th className="px-4 py-3">Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {generatedItems.map((item) => (
+                    <tr
+                      key={`${item.nrm}-${item.item}`}
+                      className="border-b border-slate-100 last:border-b-0 hover:bg-slate-50"
+                    >
+                      <td className="px-4 py-3 font-mono text-xs text-slate-500">
+                        {item.nrm}
+                      </td>
+                      <td className="px-4 py-3 font-mono text-xs text-slate-500">
+                        {item.nrm2}
+                      </td>
+                      <td className="px-4 py-3 font-semibold text-slate-800">
+                        {item.item}
+                      </td>
+                      <td className="px-4 py-3 text-slate-600">
+                        {item.source}
+                      </td>
+                      <td className="px-4 py-3 font-semibold text-slate-800">
+                        {item.quantity}
+                      </td>
+                      <td className="px-4 py-3">
+                        <span
+                          className={cn(
+                            "rounded-full border px-2 py-0.5 text-xs font-semibold",
+                            toneClasses(item.tone)
+                          )}
+                        >
+                          {item.confidence}%
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-slate-600">
+                        {item.action}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function StageContent({ stage }: { stage: StageId }) {
@@ -393,6 +577,8 @@ function StageContent({ stage }: { stage: StageId }) {
 
   return (
     <div className="space-y-5">
+      <BoqBuilderModule />
+
       <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
         <table className="w-full min-w-[760px] text-left">
           <thead className="border-b border-slate-100 bg-slate-50 text-sm uppercase text-slate-500">
@@ -581,8 +767,8 @@ export default function TendersPage() {
         </div>
       </section>
 
-      <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,7fr)_minmax(300px,3fr)]">
-        <section className="rounded-lg border border-slate-200 bg-slate-50 p-5">
+      <div className="grid min-w-0 items-start gap-5 xl:grid-cols-[minmax(0,7fr)_minmax(300px,3fr)]">
+        <section className="min-w-0 rounded-lg border border-slate-200 bg-slate-50 p-5">
           <div className="mb-5 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div>
               <p className="text-sm font-semibold uppercase tracking-wide text-blue-700">
@@ -617,7 +803,7 @@ export default function TendersPage() {
           <StageContent stage={activeStage} />
         </section>
 
-        <aside className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm xl:sticky xl:top-0">
+        <aside className="min-w-0 rounded-lg border border-slate-200 bg-white p-5 shadow-sm xl:sticky xl:top-0">
           <div className="flex items-center justify-between gap-4">
             <div>
               <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">

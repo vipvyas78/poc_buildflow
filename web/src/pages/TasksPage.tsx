@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import {
   CheckCircle2,
@@ -7,12 +7,34 @@ import {
   Search,
 } from "lucide-react";
 
-import { tasks } from "../features/tasks/data/tasks";
+import { getTasks } from "../lib/api";
+
+type Task = {
+  id: number;
+  title: string;
+  project: string;
+  contractor: string;
+  assignee: string;
+  status: string;
+  priority: string;
+  dueDate: string;
+  completed: boolean;
+};
 
 export default function TasksPage() {
 
   const [search, setSearch] = useState("");
   const [projectFilter, setProjectFilter] = useState("All");
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    getTasks()
+      .then(setTasks)
+      .catch((err) => setError(err instanceof Error ? err.message : "Failed to load tasks"))
+      .finally(() => setLoading(false));
+  }, []);
 
   const filteredTasks = useMemo(() => {
     return tasks.filter((task) => {
@@ -27,7 +49,7 @@ export default function TasksPage() {
 
       return matchesProject && matchesSearch;
     });
-  }, [search, projectFilter]);
+  }, [search, projectFilter, tasks]);
 
   const upcomingTasks = filteredTasks.filter(
     (task) => !task.completed
@@ -41,6 +63,18 @@ export default function TasksPage() {
     "All",
     ...new Set(tasks.map((task) => task.project)),
   ];
+
+  if (loading) {
+    return (
+      <div className="p-6 text-slate-700">Loading tasks...</div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-6 text-red-700">Error loading tasks: {error}</div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -195,7 +229,7 @@ export default function TasksPage() {
                       <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 text-sm font-semibold text-blue-700">
                         {task.assignee
                           .split(" ")
-                          .map((n) => n[0])
+                          .map((n: string) => n[0])
                           .join("")}
                       </div>
 

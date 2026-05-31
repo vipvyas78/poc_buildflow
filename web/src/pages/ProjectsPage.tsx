@@ -17,7 +17,24 @@ import {
   useMap,
 } from "react-leaflet";
 
-import { projects } from "../features/projects/data/projects";
+import { getProjects } from "../lib/api";
+
+type Project = {
+  id: number;
+  name: string;
+  code: string;
+  type: string;
+  status: string;
+  progress: number;
+  value: string;
+  budgetVariance: string;
+  budgetStatus: string;
+  deadline: string;
+  location: string;
+  coordinates: [number, number];
+  phase: string;
+  team: string[];
+};
 
 const allOption = "All";
 const defaultMapCenter: [number, number] = [52.05, -0.85];
@@ -127,37 +144,47 @@ export default function ProjectsPage() {
   const [teamFilter, setTeamFilter] = useState(allOption);
   const [deadlineFilter, setDeadlineFilter] = useState(allOption);
   const [progressFilter, setProgressFilter] = useState(allOption);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    getProjects()
+      .then(setProjects)
+      .catch((err) => setError(err instanceof Error ? err.message : "Failed to load projects"))
+      .finally(() => setLoading(false));
+  }, []);
 
   const statusOptions = useMemo(
     () => getUniqueOptions(projects.map((project) => project.status)),
-    []
+    [projects]
   );
   const typeOptions = useMemo(
     () => getUniqueOptions(projects.map((project) => project.type)),
-    []
+    [projects]
   );
   const budgetOptions = useMemo(
     () => getUniqueOptions(projects.map((project) => project.budgetStatus)),
-    []
+    [projects]
   );
   const phaseOptions = useMemo(
     () => getUniqueOptions(projects.map((project) => project.phase)),
-    []
+    [projects]
   );
   const locationOptions = useMemo(
     () => getUniqueOptions(projects.map((project) => project.location)),
-    []
+    [projects]
   );
   const deadlineOptions = useMemo(
     () => getUniqueOptions(projects.map((project) => project.deadline)),
-    []
+    [projects]
   );
   const teamOptions = useMemo(
     () => getUniqueOptions(projects.flatMap((project) => project.team)),
-    []
+    [projects]
   );
 
-  const filteredProjects = useMemo(() => {
+  const filteredProjects = useMemo<Project[]>(() => {
     const normalizedSearch = search.trim().toLowerCase();
 
     return projects.filter((project) => {
@@ -199,11 +226,24 @@ export default function ProjectsPage() {
     locationFilter,
     phaseFilter,
     progressFilter,
+    projects,
     search,
     statusFilter,
     teamFilter,
     typeFilter,
   ]);
+
+  if (loading) {
+    return (
+      <div className="p-6 text-slate-700">Loading projects...</div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-6 text-red-700">Error loading projects: {error}</div>
+    );
+  }
 
   const hasActiveFilters =
     search ||
@@ -591,7 +631,7 @@ export default function ProjectsPage() {
 
                 <div className="flex -space-x-2">
 
-                  {project.team.map((member) => (
+                  {project.team.map((member: string) => (
                     <div
                       key={member}
                       className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-white bg-blue-100 text-sm font-medium text-blue-700"
